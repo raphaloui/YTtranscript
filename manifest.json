@@ -1,8 +1,8 @@
 
 {
-  "short_name": "Script Improver",
-  "name": "Transcript Improver & Summarizer",
-  "description": "An application to improve a raw text transcript and generate a summary using AI.",
+  "short_name": "Migliora Script",
+  "name": "Miglioratore e Riassuntore di Trascrizioni",
+  "description": "Un'applicazione per migliorare una trascrizione di testo grezza e generare un riassunto tramite IA.",
   "icons": [
     {
       "src": "/icon-192x192.png",
