@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Video Script Translator</title>
+    <meta name="theme-color" content="#111827">
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes fade-in {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in {
+        animation: fade-in 0.5s ease-out forwards;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+  <body class="bg-gray-900 text-gray-100 font-sans">
+    <div id="app-container"></div>
+    <script type="module" src="./index.js"></script>
+  <script type="module" src="/index.tsx"></script>
+</body>
+</html>
