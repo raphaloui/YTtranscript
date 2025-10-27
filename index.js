@@ -2,10 +2,13 @@ import { GoogleGenAI } from "@google/genai";
 
 // --- START OF GEMINI SERVICE ---
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
+  // Retrieve the key from the browser's session storage
+  const apiKey = sessionStorage.getItem('gemini-api-key');
   if (!apiKey) {
-    throw new Error("Gemini API key not found. Please select an API key to use this application.");
+    throw new Error("Gemini API key not found in session storage. Please enter your API key.");
   }
+  // DO NOT CREATE THE CLIENT INSTANCE UNTIL RIGHT BEFORE THE API CALL
+  // This ensures it uses the most up-to-date key if it changes.
   return new GoogleGenAI({ apiKey });
 };
 
@@ -126,12 +129,14 @@ const handleApiError = (err) => {
     let errorMessage = "An unknown error occurred.";
     if (err instanceof Error) {
         errorMessage = err.message;
-        if (errorMessage.includes("Requested entity was not found")) {
-            setState({ error: "Your API key appears to be invalid. Please select a valid API key to continue.", hasApiKey: false });
+        // Check for common API key-related error messages
+        if (errorMessage.toLowerCase().includes("api key not valid") || errorMessage.includes("requested entity was not found")) {
+            sessionStorage.removeItem('gemini-api-key');
+            setState({ error: "Your API key appears to be invalid. Please enter a valid API key to continue.", hasApiKey: false, isLoading: false, isTranslating: false });
             return true;
         }
     }
-    setState({ error: errorMessage });
+    setState({ error: errorMessage, isLoading: false, isTranslating: false });
     return false;
 };
 
@@ -145,9 +150,7 @@ async function handleProcessText() {
         const { improvedText, summary } = await processTranscript(state.inputText);
         setState({ result: { improvedText, summary }, isLoading: false });
     } catch (err) {
-        if (!handleApiError(err)) {
-           setState({ isLoading: false });
-        }
+        handleApiError(err);
     }
 }
 
@@ -168,9 +171,7 @@ async function handleTranslate() {
             isTranslating: false
         });
     } catch (err) {
-        if(!handleApiError(err)) {
-            setState({ isTranslating: false });
-        }
+        handleApiError(err);
     }
 }
 
@@ -183,7 +184,7 @@ function render() {
         loaderContainer.appendChild(createLoader());
         const text = document.createElement('p');
         text.className = "mt-4 text-lg";
-        text.textContent = "Verifying API Key...";
+        text.textContent = "Loading Application...";
         loaderContainer.appendChild(text);
         appContainer.appendChild(loaderContainer);
         return;
@@ -192,24 +193,32 @@ function render() {
     if (!state.hasApiKey) {
         appContainer.className = "min-h-screen bg-gradient-to-br from-gray-900 via-blue-900/40 to-gray-900 flex items-center justify-center p-4";
         const keyScreen = document.createElement('div');
-        keyScreen.className = "bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl shadow-2xl ring-1 ring-white/10 max-w-lg text-center";
+        keyScreen.className = "bg-gray-800/50 backdrop-blur-sm p-8 rounded-xl shadow-2xl ring-1 ring-white/10 max-w-lg text-center animate-fade-in";
         keyScreen.innerHTML = `
-            <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300 mb-4">API Key Required</h2>
-            <p class="text-gray-400 mb-6">To use this application, you need to select a Gemini API key. Your key is used securely and is required to interact with the AI model.</p>
-            <button id="select-key-btn" class="w-full bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-500 transition-all duration-200 shadow-lg hover:shadow-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
-                Select Your API Key
-            </button>
-            <p class="text-xs text-gray-500 mt-4">For more information on billing, please visit the <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">official documentation</a>.</p>
-            ${state.error ? `<p class="error-message text-red-400 mt-4 text-center">${state.error}</p>` : ''}
+            <h2 class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-teal-300 mb-4">Gemini API Key Required</h2>
+            <p class="text-gray-400 mb-6">Please enter your Google Gemini API key to use this application. Your key is stored securely in your browser's session and is never shared.</p>
+            <div class="flex flex-col gap-4">
+                <input type="password" id="api-key-input" placeholder="Paste your API Key here" class="text-center w-full bg-gray-900/70 border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition duration-200" />
+                <button id="save-key-btn" class="w-full bg-blue-600 text-white font-semibold px-6 py-3 rounded-lg hover:bg-blue-500 transition-all duration-200 shadow-lg hover:shadow-blue-500/50 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-75">
+                    Save and Continue
+                </button>
+            </div>
+             <p class="text-xs text-gray-500 mt-4">Get your key from <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">Google AI Studio</a>. For billing info, visit the <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" class="text-blue-400 hover:underline">documentation</a>.</p>
+            ${state.error ? `<p class="error-message text-red-400 mt-4 text-center font-semibold">${state.error}</p>` : ''}
         `;
-        keyScreen.querySelector('#select-key-btn').addEventListener('click', async () => {
-            setState({ error: null });
-            try {
-                await window.aistudio.openSelectKey();
-                setState({ hasApiKey: true });
-            } catch (e) {
-                console.error("Failed to open API key selection:", e);
-                setState({ error: "Could not open the API key selection dialog. Please try refreshing the page." });
+        keyScreen.querySelector('#save-key-btn').addEventListener('click', () => {
+            const input = keyScreen.querySelector('#api-key-input');
+            const apiKey = input.value.trim();
+            if (apiKey) {
+                sessionStorage.setItem('gemini-api-key', apiKey);
+                setState({ hasApiKey: true, error: null });
+            } else {
+                setState({ error: "Please enter a valid API key." });
+            }
+        });
+        keyScreen.querySelector('#api-key-input').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                keyScreen.querySelector('#save-key-btn').click();
             }
         });
         appContainer.appendChild(keyScreen);
@@ -361,15 +370,13 @@ function render() {
 }
 
 // Initial check and render
-(async () => {
-    try {
-        if (await window.aistudio.hasSelectedApiKey()) {
+document.addEventListener('DOMContentLoaded', () => {
+    // A short delay to allow the browser to paint the initial background
+    setTimeout(() => {
+        if (sessionStorage.getItem('gemini-api-key')) {
             setState({ hasApiKey: true, checkingApiKey: false });
         } else {
             setState({ checkingApiKey: false });
         }
-    } catch (e) {
-        console.error("aistudio SDK not available.", e);
-        setState({ error: "Could not connect to the API key service. Please refresh the page.", checkingApiKey: false });
-    }
-})();
+    }, 100);
+});
